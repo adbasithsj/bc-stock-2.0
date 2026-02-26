@@ -136,7 +136,7 @@
 
     <div class="controls">
         <input type="search" id="searchInput" class="search-bar" 
-               placeholder="Search... (use '-' to exclude, e.g. -camera)" oninput="filterAndRender()">
+               placeholder="Search... (use '-' to exclude, e.g. -camera)" oninput="filterAndRender()" autofocus>
         
         <button id="lowStockBtn" class="btn" onclick="toggleFilter('low')">⚠️ Only Low</button>
         <button id="outStockBtn" class="btn" onclick="toggleFilter('out')">🚫 Only Out</button>
