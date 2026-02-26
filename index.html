@@ -191,6 +191,7 @@
         document.getElementById('lowStockBtn').classList.toggle('active-low', currentFilter === 'low');
         document.getElementById('outStockBtn').classList.toggle('active-out', currentFilter === 'out');
         filterAndRender();
+        focusSearch();
     }
 
     function toggleExclusion(type) {
@@ -198,6 +199,7 @@
         const btnId = type === 'low' ? 'hideLowBtn' : 'hideOutBtn';
         document.getElementById(btnId).classList.toggle('active-exclude', exclusions[type]);
         filterAndRender();
+        focusSearch();
     }
 
     function toggleSort() {
@@ -212,14 +214,12 @@
             document.getElementById('sortBtn').innerHTML = '↕️ Price';
         }
         filterAndRender();
+        focusSearch();
     }
 
     function resetAllFilters() {
         // Clear search
         document.getElementById("searchInput").value = "";
-
-        // Focus search bar
-        searchInput.focus();
         
         // Clear status filters
         currentFilter = 'all';
@@ -236,6 +236,7 @@
         document.getElementById('sortBtn').innerHTML = '↕️ Price';
         
         filterAndRender();
+        focusSearch();
     }
 
     function filterAndRender() {
@@ -292,6 +293,10 @@
     }
 
     loadData();
+
+    function focusSearch() {
+        document.getElementById("searchInput").focus();
+    }
 </script>
 
 </body>
