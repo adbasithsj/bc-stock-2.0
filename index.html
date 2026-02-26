@@ -217,6 +217,9 @@
     function resetAllFilters() {
         // Clear search
         document.getElementById("searchInput").value = "";
+
+        // Focus search bar
+        searchInput.focus();
         
         // Clear status filters
         currentFilter = 'all';
