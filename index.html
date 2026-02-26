@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="manifest" href="manifest.json">
-    <title>BC STOCK 2.0</title>
+    <title>BC STOCK MANAGEMENT</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -16,7 +16,8 @@
             --success: #2ed573;
             --warning: #ffa502;
             --danger: #ff4757;
-            --exclude: #3b82f6; /* Blue for exclusion toggles */
+            --exclude: #3b82f6;
+            --reset: #64748b;
         }
 
         body {
@@ -37,7 +38,6 @@
         header h1 { font-size: 1.8rem; margin: 0 0 30px 0; }
         header h1 span { color: var(--primary); }
 
-        /* Controls Section */
         .controls {
             display: flex;
             gap: 10px;
@@ -53,7 +53,6 @@
             border-radius: 10px;
             color: white;
             font-size: 0.95rem;
-            margin-bottom: 5px;
         }
 
         .btn {
@@ -69,14 +68,15 @@
             gap: 6px;
             transition: 0.2s;
             font-size: 0.85rem;
+            white-space: nowrap;
         }
 
         .btn:hover { background: #334155; }
         .btn.active-low { background: var(--warning); border-color: var(--warning); color: #000; }
         .btn.active-out { background: var(--danger); border-color: var(--danger); color: #fff; }
         .btn.active-exclude { background: var(--exclude); border-color: var(--exclude); color: #fff; }
+        .btn-reset { background: rgba(100, 116, 139, 0.1); color: var(--text-dim); }
 
-        /* Counter Display */
         .view-stats {
             margin-bottom: 25px;
             font-size: 0.9rem;
@@ -89,7 +89,6 @@
             font-size: 1rem;
         }
 
-        /* Grid & Cards */
         .product-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -124,7 +123,7 @@
         footer { text-align: center; margin-top: 50px; color: var(--text-dim); padding-bottom: 30px; }
 
         @media (min-width: 600px) {
-            .search-bar { flex: 2; min-width: 300px; margin-bottom: 0; }
+            .search-bar { flex: 2; min-width: 300px; }
         }
     </style>
 </head>
@@ -132,7 +131,7 @@
 
 <div class="container">
     <header>
-        <h1>🚘 BC <span>STOCK</span>2.0</h1>
+        <h1>🚘 BC <span>STOCK</span></h1>
     </header>
 
     <div class="controls">
@@ -142,11 +141,13 @@
         <button id="lowStockBtn" class="btn" onclick="toggleFilter('low')">⚠️ Only Low</button>
         <button id="outStockBtn" class="btn" onclick="toggleFilter('out')">🚫 Only Out</button>
 
-        <button id="hideLowBtn" class="btn" onclick="toggleExclusion('low')">🙈 Hide Low</button>
-        <button id="hideOutBtn" class="btn" onclick="toggleExclusion('out')">🙈 Hide Out</button>
+        <button id="hideLowBtn" class="btn" onclick="toggleExclusion('low')">👁️‍🗨️ Hide Low</button>
+        <button id="hideOutBtn" class="btn" onclick="toggleExclusion('out')">👁️‍🗨️ Hide Out</button>
 
         <button id="sortBtn" class="btn" onclick="toggleSort()">↕️ Price</button>
-        <button class="btn" onclick="location.reload()" title="Reload page">🔄 Refresh</button>
+        
+        <button class="btn btn-reset" onclick="resetAllFilters()">🔄 Reset All</button>
+        
     </div>
 
     <div class="view-stats">
@@ -162,8 +163,8 @@
     const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTU0lcRbh21NbUU4qb5TLUTjdJ-XPJcvlhQtoGiPdceXAJRaRakKPlenRxo4YLcXLc2UxuGxBOyEDGp/pub?gid=0&single=true&output=csv";
     
     let products = [];
-    let currentFilter = 'all'; // For "Only Low" or "Only Out"
-    let exclusions = { low: false, out: false }; // For "Hide Low" or "Hide Out"
+    let currentFilter = 'all';
+    let exclusions = { low: false, out: false };
     let sortDirection = 'none';
 
     async function loadData() {
@@ -182,27 +183,20 @@
             }).filter(p => p.name !== "N/A" && p.name !== ""); 
             
             filterAndRender();
-        } catch (e) { 
-            console.error("Error loading data"); 
-        }
+        } catch (e) { console.error("Error loading data"); }
     }
 
-    // Toggle "Only" filters
     function toggleFilter(type) {
         currentFilter = (currentFilter === type) ? 'all' : type;
-        
         document.getElementById('lowStockBtn').classList.toggle('active-low', currentFilter === 'low');
         document.getElementById('outStockBtn').classList.toggle('active-out', currentFilter === 'out');
-        
         filterAndRender();
     }
 
-    // Toggle "Hide" filters
     function toggleExclusion(type) {
         exclusions[type] = !exclusions[type];
         const btnId = type === 'low' ? 'hideLowBtn' : 'hideOutBtn';
         document.getElementById(btnId).classList.toggle('active-exclude', exclusions[type]);
-        
         filterAndRender();
     }
 
@@ -210,23 +204,41 @@
         if (sortDirection === 'none') {
             sortDirection = 'asc';
             document.getElementById('sortBtn').innerHTML = '🔽 Price: L';
-        }
-        else if (sortDirection === 'asc') {
+        } else if (sortDirection === 'asc') {
             sortDirection = 'desc';
             document.getElementById('sortBtn').innerHTML = '🔼 Price: H';
-        }
-        else {
+        } else {
             sortDirection = 'none';
             document.getElementById('sortBtn').innerHTML = '↕️ Price';
         }
         filterAndRender();
     }
 
+    function resetAllFilters() {
+        // Clear search
+        document.getElementById("searchInput").value = "";
+        
+        // Clear status filters
+        currentFilter = 'all';
+        document.getElementById('lowStockBtn').classList.remove('active-low');
+        document.getElementById('outStockBtn').classList.remove('active-out');
+        
+        // Clear exclusions
+        exclusions = { low: false, out: false };
+        document.getElementById('hideLowBtn').classList.remove('active-exclude');
+        document.getElementById('hideOutBtn').classList.remove('active-exclude');
+        
+        // Clear sort
+        sortDirection = 'none';
+        document.getElementById('sortBtn').innerHTML = '↕️ Price';
+        
+        filterAndRender();
+    }
+
     function filterAndRender() {
         let filtered = [...products];
-
-        // 1. Advanced Search (Support for negation with '-')
         const searchInput = document.getElementById("searchInput").value.toLowerCase().trim();
+
         if (searchInput) {
             const searchTerms = searchInput.split(/\s+/);
             const includeTerms = searchTerms.filter(t => !t.startsWith('-'));
@@ -234,37 +246,20 @@
 
             filtered = filtered.filter(p => {
                 const name = p.name.toLowerCase();
-                // Must contain all include terms
                 const matchesInclude = includeTerms.every(term => name.includes(term));
-                // Must NOT contain any exclude terms
                 const matchesExclude = excludeTerms.some(term => term !== "" && name.includes(term));
-                
                 return matchesInclude && !matchesExclude;
             });
         }
 
-        // 2. Exclusion Filters (Hide Low/Out)
-        if (exclusions.low) {
-            filtered = filtered.filter(p => !(p.stock > 0 && p.stock <= 5));
-        }
-        if (exclusions.out) {
-            filtered = filtered.filter(p => p.stock > 0);
-        }
+        if (exclusions.low) filtered = filtered.filter(p => !(p.stock > 0 && p.stock <= 5));
+        if (exclusions.out) filtered = filtered.filter(p => p.stock > 0);
 
-        // 3. Status Filters (Only Low/Out)
-        if (currentFilter === 'low') {
-            filtered = filtered.filter(p => p.stock > 0 && p.stock <= 5);
-        } else if (currentFilter === 'out') {
-            filtered = filtered.filter(p => p.stock <= 0);
-        }
+        if (currentFilter === 'low') filtered = filtered.filter(p => p.stock > 0 && p.stock <= 5);
+        else if (currentFilter === 'out') filtered = filtered.filter(p => p.stock <= 0);
 
-        // 4. Sorting
-        if (sortDirection === 'asc') {
-            filtered.sort((a, b) => a.price - b.price);
-        }
-        else if (sortDirection === 'desc') {
-            filtered.sort((a, b) => b.price - a.price);
-        }
+        if (sortDirection === 'asc') filtered.sort((a, b) => a.price - b.price);
+        else if (sortDirection === 'desc') filtered.sort((a, b) => b.price - a.price);
 
         document.getElementById('item-count').innerText = filtered.length;
         render(filtered);
@@ -273,10 +268,9 @@
     function render(items) {
         const list = document.getElementById("product-list");
         if(items.length === 0) {
-            list.innerHTML = `<p style="grid-column: 1/-1; text-align:center; color:var(--text-dim); margin-top: 40px;">No items found matching your criteria.</p>`;
+            list.innerHTML = `<p style="grid-column: 1/-1; text-align:center; color:var(--text-dim); margin-top: 40px;">No items found.</p>`;
             return;
         }
-
         list.innerHTML = items.map(p => `
             <div class="card">
                 <div>
