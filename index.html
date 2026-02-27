@@ -80,6 +80,10 @@
         <button class="btn btn-pdf" onclick="exportToPDF()">📄 PDF</button>
         
         <button class="btn btn-reset" onclick="resetAllFilters()">🔄 Reset</button>
+        <div style="display: flex; align-items: center; gap: 8px; margin-left: 5px;">
+            <input type="text" id="calcInput" class="btn" style="width: 80px; cursor: text; text-align: center;" placeholder="Calc..." oninput="quickCalc()">
+            <span id="calcResult" style="font-weight: 700; color: var(--success); font-size: 0.9rem;"></span>
+        </div>
     </div>
 
     <div class="view-stats">
@@ -265,6 +269,29 @@
     function focusSearch() { document.getElementById("searchInput").focus(); }
     
     loadData();
+    function quickCalc() {
+        const input = document.getElementById('calcInput');
+        const display = document.getElementById('calcResult');
+        const val = input.value.trim();
+    
+        if (!val) {
+            display.innerText = "";
+            return;
+        }
+    
+        try {
+            // Sanitize input to only allow numbers and basic math operators
+            const result = Function(`'use strict'; return (${val})`)();
+            
+            if (result !== undefined && !isNaN(result)) {
+                display.innerText = "= " + (Number.isInteger(result) ? result : result.toFixed(2));
+            } else {
+                display.innerText = "";
+            }
+        } catch (e) {
+            display.innerText = ""; // Hide result if expression is incomplete or invalid
+        }
+    }
 </script>
 
 </body>
