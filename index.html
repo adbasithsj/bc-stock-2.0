@@ -3,9 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="manifest" href="manifest.json">
     <title>BC STOCK 2.0</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
     <style>
         :root {
             --primary: #ff4757;
@@ -17,141 +21,69 @@
             --warning: #ffa502;
             --danger: #ff4757;
             --exclude: #3b82f6;
-            --reset: #64748b;
+            --excel: #27ae60;
+            --pdf: #e74c3c;
         }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg);
-            color: var(--text-main);
-            margin: 0;
-            padding: 0;
-            line-height: 1.6;
-        }
-
-        .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 40px 20px;
-        }
-
-        header h1 { font-size: 1.8rem; margin: 0 0 30px 0; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text-main); margin: 0; padding: 0; line-height: 1.6; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 40px 20px; }
+        header h1 { font-size: 1.8rem; margin: 0; }
         header h1 span { color: var(--primary); }
-
-        .controls {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
-        }
-
-        .search-bar {
-            flex: 1 1 100%;
-            padding: 12px 18px;
-            background: var(--card-bg);
-            border: 1px solid #334155;
-            border-radius: 10px;
-            color: white;
-            font-size: 0.95rem;
-        }
-
-        .btn {
-            padding: 10px 14px;
-            border-radius: 10px;
-            border: 1px solid #334155;
-            background: var(--card-bg);
-            color: var(--text-main);
-            cursor: pointer;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            transition: 0.2s;
-            font-size: 0.85rem;
-            white-space: nowrap;
-        }
-
+        .sync-time { font-size: 0.75rem; color: var(--text-dim); margin-bottom: 30px; }
+        
+        .controls { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        .search-bar { flex: 1 1 100%; padding: 12px 18px; background: var(--card-bg); border: 1px solid #334155; border-radius: 10px; color: white; font-size: 0.95rem; }
+        
+        .btn { padding: 10px 14px; border-radius: 10px; border: 1px solid #334155; background: var(--card-bg); color: var(--text-main); cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 6px; transition: 0.2s; font-size: 0.85rem; white-space: nowrap; }
         .btn:hover { background: #334155; }
         .btn.active-low { background: var(--warning); border-color: var(--warning); color: #000; }
         .btn.active-out { background: var(--danger); border-color: var(--danger); color: #fff; }
         .btn.active-exclude { background: var(--exclude); border-color: var(--exclude); color: #fff; }
+        .btn-excel { border-color: var(--excel); color: var(--excel); }
+        .btn-pdf { border-color: var(--pdf); color: var(--pdf); }
         .btn-reset { background: rgba(100, 116, 139, 0.1); color: var(--text-dim); }
 
-        .view-stats {
-            margin-bottom: 25px;
-            font-size: 0.9rem;
-            color: var(--text-dim);
-            padding-left: 5px;
-        }
-        #item-count {
-            color: var(--primary);
-            font-weight: 700;
-            font-size: 1rem;
-        }
+        .view-stats { margin-bottom: 25px; font-size: 0.9rem; color: var(--text-dim); padding-left: 5px; display: flex; justify-content: space-between; }
+        #item-count { color: var(--primary); font-weight: 700; }
 
-        .product-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 20px;
-        }
-
-        .card {
-            background: var(--card-bg);
-            padding: 20px;
-            border-radius: 12px;
-            border: 1px solid #334155;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            min-height: 110px;
-        }
-
+        .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .card { background: var(--card-bg); padding: 20px; border-radius: 12px; border: 1px solid #334155; display: flex; flex-direction: column; justify-content: space-between; min-height: 110px; }
         .price-tag { font-size: 1.3rem; font-weight: 700; margin-bottom: 12px; }
         .price-tag span { font-size: 0.8rem; color: var(--text-dim); }
 
-        .badge {
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-size: 0.7rem;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
+        .badge { padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
         .in-stock { background: rgba(46, 213, 115, 0.1); color: var(--success); }
         .low-stock { background: rgba(255, 165, 2, 0.1); color: var(--warning); }
         .out-stock { background: rgba(255, 71, 87, 0.1); color: var(--danger); }
 
         footer { text-align: center; margin-top: 50px; color: var(--text-dim); padding-bottom: 30px; }
-
-        @media (min-width: 600px) {
-            .search-bar { flex: 2; min-width: 300px; }
-        }
+        @media (min-width: 600px) { .search-bar { flex: 2; min-width: 300px; } }
     </style>
 </head>
 <body>
 
 <div class="container">
     <header>
-        <h1>🚘 BC <span>STOCK</span>2.0</h1>
+        <h1>🚘 BC <span>STOCK</span> 2.0</h1>
+        <div class="sync-time">Last updated: <span id="last-sync">Never</span></div>
     </header>
 
     <div class="controls">
-        <input type="search" id="searchInput" class="search-bar" 
-               placeholder="Search... (use '-' to exclude, e.g. -camera)" oninput="filterAndRender()" autofocus>
+        <input type="search" id="searchInput" class="search-bar" placeholder="Search... (use '-' to exclude, e.g. -camera)" oninput="filterAndRender()" autofocus>
         
         <button id="lowStockBtn" class="btn" onclick="toggleFilter('low')">⚠️ Only Low</button>
         <button id="outStockBtn" class="btn" onclick="toggleFilter('out')">🚫 Only Out</button>
-
-        <button id="hideLowBtn" class="btn" onclick="toggleExclusion('low')">👁️‍🗨️ Hide Low</button>
-        <button id="hideOutBtn" class="btn" onclick="toggleExclusion('out')">👁️‍🗨️ Hide Out</button>
-
+        <button id="hideLowBtn" class="btn" onclick="toggleExclusion('low')">👁️ Hide Low</button>
+        <button id="hideOutBtn" class="btn" onclick="toggleExclusion('out')">👁️ Hide Out</button>
         <button id="sortBtn" class="btn" onclick="toggleSort()">↕️ Price</button>
         
-        <button class="btn btn-reset" onclick="resetAllFilters()">🔄 Reset All</button>
+        <button class="btn btn-excel" onclick="exportToExcel()">📊 Excel</button>
+        <button class="btn btn-pdf" onclick="exportToPDF()">📄 PDF</button>
         
+        <button class="btn btn-reset" onclick="resetAllFilters()">🔄 Reset</button>
     </div>
 
     <div class="view-stats">
-        Current View: <span id="item-count">0</span> items
+        <span>Showing <span id="item-count">0</span> items</span>
     </div>
 
     <div id="product-list" class="product-grid"></div>
@@ -163,6 +95,7 @@
     const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSR_y2S7ZU4m_Kahe7-_O26-D7uyYOH593XDUrlSdnBZy4uA-58S3_9FlbqTpPqB-dNwFm0iBLrYguo/pub?gid=0&single=true&output=csv";
     
     let products = [];
+    let currentlyFiltered = []; // Important for exports
     let currentFilter = 'all';
     let exclusions = { low: false, out: false };
     let sortDirection = 'none';
@@ -180,10 +113,14 @@
                     stock: parseInt(cols[1]) || 0,
                     price: parseFloat(cols[2]) || 0
                 };
-            }).filter(p => p.name !== "N/A" && p.name !== ""); 
-            
+            }).filter(p => p.name !== "N/A" && p.name !== "");
+
+            document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
             filterAndRender();
-        } catch (e) { console.error("Error loading data"); }
+        } catch (e) { 
+            console.error("Error loading data");
+            document.getElementById('product-list').innerHTML = `<p style="text-align:center; color:var(--danger);">Failed to load data from sheet.</p>`;
+        }
     }
 
     function toggleFilter(type) {
@@ -203,36 +140,23 @@
     }
 
     function toggleSort() {
-        if (sortDirection === 'none') {
-            sortDirection = 'asc';
-            document.getElementById('sortBtn').innerHTML = '🔽 Price: L';
-        } else if (sortDirection === 'asc') {
-            sortDirection = 'desc';
-            document.getElementById('sortBtn').innerHTML = '🔼 Price: H';
-        } else {
-            sortDirection = 'none';
-            document.getElementById('sortBtn').innerHTML = '↕️ Price';
-        }
+        if (sortDirection === 'none') { sortDirection = 'asc'; document.getElementById('sortBtn').innerHTML = '🔽 Price: L'; }
+        else if (sortDirection === 'asc') { sortDirection = 'desc'; document.getElementById('sortBtn').innerHTML = '🔼 Price: H'; }
+        else { sortDirection = 'none'; document.getElementById('sortBtn').innerHTML = '↕️ Price'; }
         filterAndRender();
         focusSearch();
     }
 
     function resetAllFilters() {
-        // Clear search
         document.getElementById("searchInput").value = "";
-        
-        // Clear status filters
         currentFilter = 'all';
-        document.getElementById('lowStockBtn').classList.remove('active-low');
-        document.getElementById('outStockBtn').classList.remove('active-out');
-        
-        // Clear exclusions
         exclusions = { low: false, out: false };
-        document.getElementById('hideLowBtn').classList.remove('active-exclude');
-        document.getElementById('hideOutBtn').classList.remove('active-exclude');
-        
-        // Clear sort
         sortDirection = 'none';
+        
+        // Remove classes
+        ['lowStockBtn', 'outStockBtn', 'hideLowBtn', 'hideOutBtn'].forEach(id => {
+            document.getElementById(id).classList.remove('active-low', 'active-out', 'active-exclude');
+        });
         document.getElementById('sortBtn').innerHTML = '↕️ Price';
         
         filterAndRender();
@@ -265,6 +189,7 @@
         if (sortDirection === 'asc') filtered.sort((a, b) => a.price - b.price);
         else if (sortDirection === 'desc') filtered.sort((a, b) => b.price - a.price);
 
+        currentlyFiltered = filtered; // Save for export
         document.getElementById('item-count').innerText = filtered.length;
         render(filtered);
     }
@@ -292,11 +217,54 @@
         return `<span class="badge out-stock">Out of Stock</span>`;
     }
 
-    loadData();
+    // --- EXPORT LOGIC ---
+    function exportToExcel() {
+        if (currentlyFiltered.length === 0) return alert("Nothing to export!");
+        
+        const data = currentlyFiltered.map(p => ({
+            "Product Name": p.name,
+            "Stock Level": p.stock,
+            "Status": p.stock <= 0 ? "Out of Stock" : (p.stock <= 5 ? "Low" : "Available"),
+            "Price": p.price
+        }));
 
-    function focusSearch() {
-        document.getElementById("searchInput").focus();
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Inventory");
+        XLSX.writeFile(wb, "BC_Stock_Export.xlsx");
     }
+
+    function exportToPDF() {
+        if (currentlyFiltered.length === 0) return alert("Nothing to export!");
+        
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        doc.setFontSize(18);
+        doc.text("BC STOCK Inventory Report", 14, 20);
+        doc.setFontSize(10);
+        doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
+
+        const rows = currentlyFiltered.map(p => [
+            p.name, 
+            p.stock, 
+            `Rs. ${p.price.toLocaleString()}`
+        ]);
+
+        doc.autoTable({
+            head: [['Product Name', 'Qty', 'Price']],
+            body: rows,
+            startY: 35,
+            theme: 'striped',
+            headStyles: { fillColor: [255, 71, 87] }
+        });
+
+        doc.save("BC_Stock_Report.pdf");
+    }
+
+    function focusSearch() { document.getElementById("searchInput").focus(); }
+    
+    loadData();
 </script>
 
 </body>
