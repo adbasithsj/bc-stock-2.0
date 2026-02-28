@@ -28,11 +28,16 @@
         header h1 span { color: var(--primary); }
         .sync-time { font-size: 0.75rem; color: var(--text-dim); margin-bottom: 30px; }
         
-        .controls { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        .controls { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center; }
         .search-bar { flex: 1 1 100%; padding: 12px 18px; background: var(--card-bg); border: 1px solid #334155; border-radius: 10px; color: white; font-size: 0.95rem; }
         
         .btn { padding: 10px 14px; border-radius: 10px; border: 1px solid #334155; background: var(--card-bg); color: var(--text-main); cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 6px; transition: 0.2s; font-size: 0.85rem; white-space: nowrap; }
         .btn:hover { background: #334155; }
+        
+        .price-filter-group { display: flex; align-items: center; gap: 5px; background: var(--card-bg); padding: 5px 10px; border-radius: 10px; border: 1px solid #334155; }
+        .price-input { width: 70px; background: transparent; border: none; color: white; font-size: 0.85rem; outline: none; text-align: center; }
+        .price-input::placeholder { color: var(--text-dim); }
+
         .btn.active-low { background: var(--warning); border-color: var(--warning); color: #000; }
         .btn.active-out { background: var(--danger); border-color: var(--danger); color: #fff; }
         .btn.active-exclude { background: var(--exclude); border-color: var(--exclude); color: #fff; }
@@ -66,8 +71,15 @@
     </header>
 
     <div class="controls">
-        <input type="search" id="searchInput" class="search-bar" placeholder="Search... (use '-' to exclude, e.g. -camera)" oninput="filterAndRender()" autofocus>
+        <input type="search" id="searchInput" class="search-bar" placeholder="Search... (use '-' to exclude)" oninput="filterAndRender()" autofocus>
         
+        <div class="price-filter-group">
+            <span>₹</span>
+            <input type="number" id="minPrice" class="price-input" placeholder="Min" oninput="filterAndRender()">
+            <span style="color:var(--text-dim)">-</span>
+            <input type="number" id="maxPrice" class="price-input" placeholder="Max" oninput="filterAndRender()">
+        </div>
+
         <button id="lowStockBtn" class="btn" onclick="toggleFilter('low')">⚠️ Only Low</button>
         <button id="outStockBtn" class="btn" onclick="toggleFilter('out')">🚫 Only Out</button>
         <button id="hideLowBtn" class="btn" onclick="toggleExclusion('low')">👁️ Hide Low</button>
@@ -121,7 +133,6 @@
             document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
             filterAndRender();
         } catch (e) {
-             console.error("Error loading data");
             document.getElementById('product-list').innerHTML = `<p style="text-align:center; color:var(--danger);">Failed to load data from sheet.</p>`;
         }
     }
@@ -136,11 +147,7 @@
 
     function toggleExclusion(type) {
         exclusions[type] = !exclusions[type];
-        let btnId = '';
-        if(type === 'low') btnId = 'hideLowBtn';
-        else if(type === 'out') btnId = 'hideOutBtn';
-        else if(type === 'zero') btnId = 'hideZeroBtn';
-        
+        let btnId = type === 'low' ? 'hideLowBtn' : (type === 'out' ? 'hideOutBtn' : 'hideZeroBtn');
         document.getElementById(btnId).classList.toggle('active-exclude', exclusions[type]);
         filterAndRender();
         focusSearch();
@@ -156,6 +163,8 @@
 
     function resetAllFilters() {
         document.getElementById("searchInput").value = "";
+        document.getElementById("minPrice").value = "";
+        document.getElementById("maxPrice").value = "";
         currentFilter = 'all';
         exclusions = { low: false, out: false, zero: false };
         sortDirection = 'none';
@@ -172,7 +181,10 @@
     function filterAndRender() {
         let filtered = [...products];
         const searchInput = document.getElementById("searchInput").value.toLowerCase().trim();
+        const minP = parseFloat(document.getElementById("minPrice").value) || 0;
+        const maxP = parseFloat(document.getElementById("maxPrice").value) || Infinity;
 
+        // Search Filter
         if (searchInput) {
             const searchTerms = searchInput.split(/\s+/);
             const includeTerms = searchTerms.filter(t => !t.startsWith('-'));
@@ -186,16 +198,19 @@
             });
         }
 
-        // Apply Exclusions
+        // Price Range Filter
+        filtered = filtered.filter(p => p.price >= minP && p.price <= maxP);
+
+        // Exclusions
         if (exclusions.low) filtered = filtered.filter(p => !(p.stock > 0 && p.stock <= 5));
         if (exclusions.out) filtered = filtered.filter(p => p.stock > 0);
         if (exclusions.zero) filtered = filtered.filter(p => p.price > 0);
 
-        // Apply Status Filters
+        // Status Filters
         if (currentFilter === 'low') filtered = filtered.filter(p => p.stock > 0 && p.stock <= 5);
         else if (currentFilter === 'out') filtered = filtered.filter(p => p.stock <= 0);
 
-        // Apply Sorting
+        // Sorting
         if (sortDirection === 'asc') filtered.sort((a, b) => a.price - b.price);
         else if (sortDirection === 'desc') filtered.sort((a, b) => b.price - a.price);
 
@@ -207,7 +222,7 @@
     function render(items) {
         const list = document.getElementById("product-list");
         if(items.length === 0) {
-            list.innerHTML = `<p style="grid-column: 1/-1; text-align:center; color:var(--text-dim); margin-top: 40px;">No items found.</p>`;
+            list.innerHTML = `<p style="grid-column: 1/-1; text-align:center; color:var(--text-dim); margin-top: 40px;">No items found matching filters.</p>`;
             return;
         }
         list.innerHTML = items.map(p => `
@@ -249,11 +264,7 @@
         doc.text("BC STOCK Inventory Report", 14, 20);
         doc.setFontSize(10);
         doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
-        const rows = currentlyFiltered.map(p => [
-            p.name,
-            p.stock,
-            `Rs. ${p.price.toLocaleString()}`
-        ]);
+        const rows = currentlyFiltered.map(p => [p.name, p.stock, `Rs. ${p.price.toLocaleString()}`]);
         doc.autoTable({
             head: [['Product Name', 'Qty', 'Price']],
             body: rows,
