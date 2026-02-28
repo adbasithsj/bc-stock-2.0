@@ -5,11 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BC STOCK 2.0</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-
     <style>
         :root {
             --primary: #ff4757;
@@ -74,6 +72,7 @@
         <button id="outStockBtn" class="btn" onclick="toggleFilter('out')">🚫 Only Out</button>
         <button id="hideLowBtn" class="btn" onclick="toggleExclusion('low')">👁️ Hide Low</button>
         <button id="hideOutBtn" class="btn" onclick="toggleExclusion('out')">👁️ Hide Out</button>
+        <button id="hideZeroBtn" class="btn" onclick="toggleExclusion('zero')">👁️ Hide ₹0</button>
         <button id="sortBtn" class="btn" onclick="toggleSort()">↕️ Price</button>
         
         <button class="btn btn-excel" onclick="exportToExcel()">📊 Excel</button>
@@ -99,9 +98,9 @@
     const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSR_y2S7ZU4m_Kahe7-_O26-D7uyYOH593XDUrlSdnBZy4uA-58S3_9FlbqTpPqB-dNwFm0iBLrYguo/pub?gid=0&single=true&output=csv";
     
     let products = [];
-    let currentlyFiltered = []; // Important for exports
+    let currentlyFiltered = [];
     let currentFilter = 'all';
-    let exclusions = { low: false, out: false };
+    let exclusions = { low: false, out: false, zero: false };
     let sortDirection = 'none';
 
     async function loadData() {
@@ -121,8 +120,8 @@
 
             document.getElementById('last-sync').innerText = new Date().toLocaleTimeString();
             filterAndRender();
-        } catch (e) { 
-            console.error("Error loading data");
+        } catch (e) {
+             console.error("Error loading data");
             document.getElementById('product-list').innerHTML = `<p style="text-align:center; color:var(--danger);">Failed to load data from sheet.</p>`;
         }
     }
@@ -137,7 +136,11 @@
 
     function toggleExclusion(type) {
         exclusions[type] = !exclusions[type];
-        const btnId = type === 'low' ? 'hideLowBtn' : 'hideOutBtn';
+        let btnId = '';
+        if(type === 'low') btnId = 'hideLowBtn';
+        else if(type === 'out') btnId = 'hideOutBtn';
+        else if(type === 'zero') btnId = 'hideZeroBtn';
+        
         document.getElementById(btnId).classList.toggle('active-exclude', exclusions[type]);
         filterAndRender();
         focusSearch();
@@ -154,11 +157,10 @@
     function resetAllFilters() {
         document.getElementById("searchInput").value = "";
         currentFilter = 'all';
-        exclusions = { low: false, out: false };
+        exclusions = { low: false, out: false, zero: false };
         sortDirection = 'none';
         
-        // Remove classes
-        ['lowStockBtn', 'outStockBtn', 'hideLowBtn', 'hideOutBtn'].forEach(id => {
+        ['lowStockBtn', 'outStockBtn', 'hideLowBtn', 'hideOutBtn', 'hideZeroBtn'].forEach(id => {
             document.getElementById(id).classList.remove('active-low', 'active-out', 'active-exclude');
         });
         document.getElementById('sortBtn').innerHTML = '↕️ Price';
@@ -184,16 +186,20 @@
             });
         }
 
+        // Apply Exclusions
         if (exclusions.low) filtered = filtered.filter(p => !(p.stock > 0 && p.stock <= 5));
         if (exclusions.out) filtered = filtered.filter(p => p.stock > 0);
+        if (exclusions.zero) filtered = filtered.filter(p => p.price > 0);
 
+        // Apply Status Filters
         if (currentFilter === 'low') filtered = filtered.filter(p => p.stock > 0 && p.stock <= 5);
         else if (currentFilter === 'out') filtered = filtered.filter(p => p.stock <= 0);
 
+        // Apply Sorting
         if (sortDirection === 'asc') filtered.sort((a, b) => a.price - b.price);
         else if (sortDirection === 'desc') filtered.sort((a, b) => b.price - a.price);
 
-        currentlyFiltered = filtered; // Save for export
+        currentlyFiltered = filtered;
         document.getElementById('item-count').innerText = filtered.length;
         render(filtered);
     }
@@ -221,17 +227,14 @@
         return `<span class="badge out-stock">Out of Stock</span>`;
     }
 
-    // --- EXPORT LOGIC ---
     function exportToExcel() {
         if (currentlyFiltered.length === 0) return alert("Nothing to export!");
-        
         const data = currentlyFiltered.map(p => ({
             "Product Name": p.name,
             "Stock Level": p.stock,
             "Status": p.stock <= 0 ? "Out of Stock" : (p.stock <= 5 ? "Low" : "Available"),
             "Price": p.price
         }));
-
         const ws = XLSX.utils.json_to_sheet(data);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Inventory");
@@ -240,21 +243,17 @@
 
     function exportToPDF() {
         if (currentlyFiltered.length === 0) return alert("Nothing to export!");
-        
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        
         doc.setFontSize(18);
         doc.text("BC STOCK Inventory Report", 14, 20);
         doc.setFontSize(10);
         doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
-
         const rows = currentlyFiltered.map(p => [
-            p.name, 
-            p.stock, 
+            p.name,
+            p.stock,
             `Rs. ${p.price.toLocaleString()}`
         ]);
-
         doc.autoTable({
             head: [['Product Name', 'Qty', 'Price']],
             body: rows,
@@ -262,37 +261,25 @@
             theme: 'striped',
             headStyles: { fillColor: [255, 71, 87] }
         });
-
         doc.save("BC_Stock_Report.pdf");
     }
 
     function focusSearch() { document.getElementById("searchInput").focus(); }
     
-    loadData();
     function quickCalc() {
         const input = document.getElementById('calcInput');
         const display = document.getElementById('calcResult');
         const val = input.value.trim();
-    
-        if (!val) {
-            display.innerText = "";
-            return;
-        }
-    
+        if (!val) { display.innerText = ""; return; }
         try {
-            // Sanitize input to only allow numbers and basic math operators
             const result = Function(`'use strict'; return (${val})`)();
-            
             if (result !== undefined && !isNaN(result)) {
                 display.innerText = "= " + (Number.isInteger(result) ? result : result.toFixed(2));
-            } else {
-                display.innerText = "";
-            }
-        } catch (e) {
-            display.innerText = ""; // Hide result if expression is incomplete or invalid
-        }
+            } else { display.innerText = ""; }
+        } catch (e) { display.innerText = ""; }
     }
-</script>
 
+    loadData();
+</script>
 </body>
 </html>
