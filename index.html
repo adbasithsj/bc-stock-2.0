@@ -242,28 +242,37 @@
     }
 
     // --- TODO LOGIC ---
-    async function fetchTasks(url, elementId) {
-        try {
-            const response = await fetch(url);
-            const csv = await response.text();
-            const rows = csv.split("\n").slice(1);
-            
-            let html = '<table class="todo-table">';
-            rows.forEach(row => {
-                const cols = row.split(",");
-                if (cols.length >= 2 && cols[1].trim() !== "") {
+async function fetchTasks(url, elementId) {
+    try {
+        const response = await fetch(url);
+        const csv = await response.text();
+        // Split by lines, then handle each row
+        const rows = csv.split("\n").slice(1);
+        
+        let html = '<table class="todo-table">';
+        rows.forEach(row => {
+            // This regex splits only at the FIRST comma found in the line
+            const firstCommaIndex = row.indexOf(',');
+            if (firstCommaIndex !== -1) {
+                const col0 = row.substring(0, firstCommaIndex).trim();
+                const col1 = row.substring(firstCommaIndex + 1).trim();
+                
+                if (col1 !== "") {
+                    // Remove quotes if Google Sheets added them automatically
+                    const cleanTask = col1.replace(/^"|"$/g, '').replace(/""/g, '"');
                     html += `<tr>
-                        <td class="todo-no">${cols[0]}</td>
-                        <td>${cols[1].replace(/"/g, '')}</td>
+                        <td class="todo-no">${col0}</td>
+                        <td>${cleanTask}</td>
                     </tr>`;
                 }
-            });
-            html += '</table>';
-            document.getElementById(elementId).innerHTML = html;
-        } catch (e) {
-            document.getElementById(elementId).innerHTML = '<p style="color:var(--danger);">Load error.</p>';
-        }
+            }
+        });
+        html += '</table>';
+        document.getElementById(elementId).innerHTML = html;
+    } catch (e) {
+        document.getElementById(elementId).innerHTML = '<p style="color:var(--danger);">Load error.</p>';
     }
+}
 
     function openTodo() {
         document.getElementById("todoModal").style.display = "block";
