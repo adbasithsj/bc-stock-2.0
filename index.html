@@ -21,19 +21,23 @@
             --exclude: #3b82f6;
             --excel: #27ae60;
             --pdf: #e74c3c;
+            --todo: #a55eea;
         }
         body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text-main); margin: 0; padding: 0; line-height: 1.6; }
         .container { max-width: 1000px; margin: 0 auto; padding: 40px 20px; }
         header h1 { font-size: 1.8rem; margin: 0; }
         header h1 span { color: var(--primary); }
         .sync-time { font-size: 0.75rem; color: var(--text-dim); margin-bottom: 30px; }
-        
+                
         .controls { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center; }
         .search-bar { flex: 1 1 100%; padding: 12px 18px; background: var(--card-bg); border: 1px solid #334155; border-radius: 10px; color: white; font-size: 0.95rem; }
-        
+                
         .btn { padding: 10px 14px; border-radius: 10px; border: 1px solid #334155; background: var(--card-bg); color: var(--text-main); cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 6px; transition: 0.2s; font-size: 0.85rem; white-space: nowrap; }
         .btn:hover { background: #334155; }
         
+        .btn-todo { border-color: var(--todo); color: var(--todo); font-weight: bold; }
+        .btn-todo:hover { background: rgba(165, 94, 234, 0.1); }
+
         .price-filter-group { display: flex; align-items: center; gap: 5px; background: var(--card-bg); padding: 5px 10px; border-radius: 10px; border: 1px solid #334155; }
         .price-input { width: 70px; background: transparent; border: none; color: white; font-size: 0.85rem; outline: none; text-align: center; }
         .price-input::placeholder { color: var(--text-dim); }
@@ -58,6 +62,18 @@
         .low-stock { background: rgba(255, 165, 2, 0.1); color: var(--warning); }
         .out-stock { background: rgba(255, 71, 87, 0.1); color: var(--danger); }
 
+        /* Modal Styling */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); }
+        .modal-content { background: var(--card-bg); margin: 5vh auto; padding: 25px; border-radius: 15px; border: 1px solid #334155; width: 90%; max-width: 650px; position: relative; max-height: 85vh; overflow-y: auto; }
+        .close-modal { position: absolute; right: 20px; top: 15px; font-size: 28px; cursor: pointer; color: var(--text-dim); }
+        
+        .todo-section { margin-bottom: 30px; }
+        .todo-section h3 { color: var(--primary); border-bottom: 1px solid #334155; padding-bottom: 8px; margin-bottom: 15px; font-size: 1.1rem; display: flex; justify-content: space-between; align-items: center; }
+        .todo-table { width: 100%; border-collapse: collapse; }
+        .todo-table td { padding: 12px 8px; border-bottom: 1px solid #334155; font-size: 0.9rem; vertical-align: top; }
+        .todo-no { color: var(--primary); font-weight: bold; width: 30px; }
+        .loading-text { font-size: 0.8rem; color: var(--text-dim); font-style: italic; }
+
         footer { text-align: center; margin-top: 50px; color: var(--text-dim); padding-bottom: 30px; }
         @media (min-width: 600px) { .search-bar { flex: 2; min-width: 300px; } }
     </style>
@@ -80,6 +96,7 @@
             <input type="number" id="maxPrice" class="price-input" placeholder="Max" oninput="filterAndRender()">
         </div>
 
+        <button class="btn btn-todo" onclick="openTodo()">📋 TODO LIST</button>
         <button id="lowStockBtn" class="btn" onclick="toggleFilter('low')">⚠️ Only Low</button>
         <button id="outStockBtn" class="btn" onclick="toggleFilter('out')">🚫 Only Out</button>
         <button id="hideLowBtn" class="btn" onclick="toggleExclusion('low')">👁️ Hide Low</button>
@@ -91,6 +108,7 @@
         <button class="btn btn-pdf" onclick="exportToPDF()">📄 PDF</button>
         
         <button class="btn btn-reset" onclick="resetAllFilters()">🔄 Reset</button>
+
         <div style="display: flex; align-items: center; gap: 8px; margin-left: 5px;">
             <input type="text" id="calcInput" class="btn" style="width: 80px; cursor: text; text-align: center;" placeholder="Calc..." oninput="quickCalc()">
             <span id="calcResult" style="font-weight: 700; color: var(--success); font-size: 0.9rem;"></span>
@@ -104,17 +122,47 @@
     <div id="product-list" class="product-grid"></div>
 </div>
 
+<div id="todoModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeTodo()">&times;</span>
+        <h2 style="margin-top:0">Work Dashboard</h2>
+        <p id="todo-sync-status" class="loading-text" style="margin-bottom:20px;"></p>
+        
+        <div class="todo-section">
+            <h3>☀️ DAILY WORK</h3>
+            <div id="daily-list"><p class="loading-text">Fetching tasks...</p></div>
+        </div>
+
+        <div class="todo-section">
+            <h3>📅 WEEKLY WORK</h3>
+            <div id="weekly-list"><p class="loading-text">Fetching tasks...</p></div>
+        </div>
+
+        <div class="todo-section">
+            <h3>🗓️ MONTHLY WORK</h3>
+            <div id="monthly-list"><p class="loading-text">Fetching tasks...</p></div>
+        </div>
+    </div>
+</div>
+
 <footer>Developed by <b style="color:var(--primary)">Ahamed Basith</b></footer>
 
 <script>
     const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSR_y2S7ZU4m_Kahe7-_O26-D7uyYOH593XDUrlSdnBZy4uA-58S3_9FlbqTpPqB-dNwFm0iBLrYguo/pub?gid=0&single=true&output=csv";
     
+    const taskURLs = {
+        daily: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSR_y2S7ZU4m_Kahe7-_O26-D7uyYOH593XDUrlSdnBZy4uA-58S3_9FlbqTpPqB-dNwFm0iBLrYguo/pub?gid=1770873974&single=true&output=csv",
+        weekly: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSR_y2S7ZU4m_Kahe7-_O26-D7uyYOH593XDUrlSdnBZy4uA-58S3_9FlbqTpPqB-dNwFm0iBLrYguo/pub?gid=1413648630&single=true&output=csv",
+        monthly: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSR_y2S7ZU4m_Kahe7-_O26-D7uyYOH593XDUrlSdnBZy4uA-58S3_9FlbqTpPqB-dNwFm0iBLrYguo/pub?gid=1126899357&single=true&output=csv"
+    };
+
     let products = [];
     let currentlyFiltered = [];
     let currentFilter = 'all';
     let exclusions = { low: false, out: false, zero: false };
     let sortDirection = 'none';
 
+    // --- MAIN STOCK LOGIC ---
     async function loadData() {
         try {
             const response = await fetch(sheetURL);
@@ -137,6 +185,48 @@
         }
     }
 
+    // --- TODO LOGIC ---
+    async function fetchTasks(url, elementId) {
+        try {
+            const response = await fetch(url);
+            const csv = await response.text();
+            const rows = csv.split("\n").slice(1);
+            
+            let html = '<table class="todo-table">';
+            rows.forEach(row => {
+                const cols = row.split(",");
+                if (cols.length >= 2 && cols[1].trim() !== "") {
+                    html += `<tr>
+                        <td class="todo-no">${cols[0]}</td>
+                        <td>${cols[1].replace(/"/g, '')}</td>
+                    </tr>`;
+                }
+            });
+            html += '</table>';
+            document.getElementById(elementId).innerHTML = html;
+        } catch (e) {
+            document.getElementById(elementId).innerHTML = '<p style="color:var(--danger);">Load error.</p>';
+        }
+    }
+
+    function openTodo() {
+        document.getElementById("todoModal").style.display = "block";
+        document.getElementById("todo-sync-status").innerText = "Syncing with Google Sheets...";
+        
+        Promise.all([
+            fetchTasks(taskURLs.daily, 'daily-list'),
+            fetchTasks(taskURLs.weekly, 'weekly-list'),
+            fetchTasks(taskURLs.monthly, 'monthly-list')
+        ]).then(() => {
+            document.getElementById("todo-sync-status").innerText = "All tasks up to date: " + new Date().toLocaleTimeString();
+        });
+    }
+
+    function closeTodo() {
+        document.getElementById("todoModal").style.display = "none";
+    }
+
+    // --- FILTER & RENDER LOGIC ---
     function toggleFilter(type) {
         currentFilter = (currentFilter === type) ? 'all' : type;
         document.getElementById('lowStockBtn').classList.toggle('active-low', currentFilter === 'low');
@@ -168,12 +258,10 @@
         currentFilter = 'all';
         exclusions = { low: false, out: false, zero: false };
         sortDirection = 'none';
-        
         ['lowStockBtn', 'outStockBtn', 'hideLowBtn', 'hideOutBtn', 'hideZeroBtn'].forEach(id => {
             document.getElementById(id).classList.remove('active-low', 'active-out', 'active-exclude');
         });
         document.getElementById('sortBtn').innerHTML = '↕️ Price';
-        
         filterAndRender();
         focusSearch();
     }
@@ -184,12 +272,10 @@
         const minP = parseFloat(document.getElementById("minPrice").value) || 0;
         const maxP = parseFloat(document.getElementById("maxPrice").value) || Infinity;
 
-        // Search Filter
         if (searchInput) {
             const searchTerms = searchInput.split(/\s+/);
             const includeTerms = searchTerms.filter(t => !t.startsWith('-'));
             const excludeTerms = searchTerms.filter(t => t.startsWith('-')).map(t => t.substring(1));
-
             filtered = filtered.filter(p => {
                 const name = p.name.toLowerCase();
                 const matchesInclude = includeTerms.every(term => name.includes(term));
@@ -198,19 +284,13 @@
             });
         }
 
-        // Price Range Filter
         filtered = filtered.filter(p => p.price >= minP && p.price <= maxP);
-
-        // Exclusions
         if (exclusions.low) filtered = filtered.filter(p => !(p.stock > 0 && p.stock <= 5));
         if (exclusions.out) filtered = filtered.filter(p => p.stock > 0);
         if (exclusions.zero) filtered = filtered.filter(p => p.price > 0);
-
-        // Status Filters
         if (currentFilter === 'low') filtered = filtered.filter(p => p.stock > 0 && p.stock <= 5);
         else if (currentFilter === 'out') filtered = filtered.filter(p => p.stock <= 0);
 
-        // Sorting
         if (sortDirection === 'asc') filtered.sort((a, b) => a.price - b.price);
         else if (sortDirection === 'desc') filtered.sort((a, b) => b.price - a.price);
 
@@ -262,8 +342,6 @@
         const doc = new jsPDF();
         doc.setFontSize(18);
         doc.text("BC STOCK Inventory Report", 14, 20);
-        doc.setFontSize(10);
-        doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
         const rows = currentlyFiltered.map(p => [p.name, p.stock, `Rs. ${p.price.toLocaleString()}`]);
         doc.autoTable({
             head: [['Product Name', 'Qty', 'Price']],
@@ -276,7 +354,6 @@
     }
 
     function focusSearch() { document.getElementById("searchInput").focus(); }
-    
     function quickCalc() {
         const input = document.getElementById('calcInput');
         const display = document.getElementById('calcResult');
@@ -284,10 +361,12 @@
         if (!val) { display.innerText = ""; return; }
         try {
             const result = Function(`'use strict'; return (${val})`)();
-            if (result !== undefined && !isNaN(result)) {
-                display.innerText = "= " + (Number.isInteger(result) ? result : result.toFixed(2));
-            } else { display.innerText = ""; }
+            display.innerText = (result !== undefined && !isNaN(result)) ? "= " + (Number.isInteger(result) ? result : result.toFixed(2)) : "";
         } catch (e) { display.innerText = ""; }
+    }
+
+    window.onclick = function(event) {
+        if (event.target == document.getElementById("todoModal")) closeTodo();
     }
 
     loadData();
