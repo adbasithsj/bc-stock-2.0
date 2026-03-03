@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -108,10 +109,18 @@
         
         <button class="btn btn-reset" onclick="resetAllFilters()">🔄 Reset</button>
 
-        <div style="display: flex; align-items: center; gap: 8px; margin-left: 5px;">
-            <input type="text" id="calcInput" class="btn" style="width: 80px; cursor: text; text-align: center;" placeholder="Calc..." oninput="quickCalc()">
-            <span id="calcResult" style="font-weight: 700; color: var(--success); font-size: 0.9rem;"></span>
-        </div>
+        <div style="display: flex; align-items: center; gap: 8px; margin-left: 5px; position: relative;">
+    <div style="position: relative; display: flex; align-items: center;">
+        <input type="text" id="calcInput" class="btn" 
+               style="width: 100px; cursor: text; text-align: left; padding-right: 25px;" 
+               placeholder="Calc..." 
+               oninput="quickCalc()" 
+               onkeydown="handleCalcKey(event)">
+        <span id="clearCalc" onclick="clearCalculator()" 
+              style="position: absolute; right: 8px; cursor: pointer; color: var(--text-dim); font-weight: bold; display: none;">×</span>
+    </div>
+    <span id="calcResult" style="font-weight: 700; color: var(--success); font-size: 0.9rem;"></span>
+</div>
     </div>
 
     <div class="view-stats">
@@ -383,13 +392,48 @@
     }
 
     function quickCalc() {
-        const input = document.getElementById('calcInput');
-        const display = document.getElementById('calcResult');
-        try {
-            const result = Function(`'use strict'; return (${input.value})`)();
-            display.innerText = (result !== undefined && !isNaN(result)) ? "= " + result : "";
-        } catch (e) { display.innerText = ""; }
+      const input = document.getElementById('calcInput');
+      const display = document.getElementById('calcResult');
+      const clearBtn = document.getElementById('clearCalc');
+    
+      // Show/Hide clear icon
+      clearBtn.style.display = input.value.length > 0 ? "block" : "none";
+
+      try {
+        // Basic sanitization: only allow numbers and math operators
+        const cleanInput = input.value.replace(/[^-()\d/*+.]/g, '');
+        if (cleanInput === "") {
+            display.innerText = "";
+            return;
+        }
+        const result = Function(`'use strict'; return (${cleanInput})`)();
+        display.innerText = (result !== undefined && !isNaN(result)) ? "= " + result : "";
+      } catch (e) { 
+        display.innerText = ""; 
+      }
     }
+
+  // Feature 1: Handle Enter Key (Desktop & Mobile)
+  function handleCalcKey(event) {
+    if (event.key === "Enter") {
+        const resultText = document.getElementById('calcResult').innerText;
+        if (resultText.includes("=")) {
+            // Take the result (number after =) and put it in the box
+            document.getElementById('calcInput').value = resultText.replace("= ", "");
+            document.getElementById('calcResult').innerText = "";
+        }
+        event.target.blur(); // Closes mobile keyboard
+    }
+  }
+
+  // Feature 2: Clear functionality
+  function clearCalculator() {
+    const input = document.getElementById('calcInput');
+    input.value = "";
+    document.getElementById('calcResult').innerText = "";
+    document.getElementById('clearCalc').style.display = "none";
+    input.focus();
+  }
 
     window.onclick = function(event) {
         if (event.target == document.getElementById("todoModal")) closeTodo();
