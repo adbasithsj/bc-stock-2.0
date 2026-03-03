@@ -422,7 +422,8 @@
             document.getElementById('calcInput').value = resultText.replace("= ", "");
             document.getElementById('calcResult').innerText = "";
         }
-        event.target.blur(); // Closes mobile keyboard
+        // event.target.blur(); // Closes mobile keyboard
+        input.focus();
     }
   }
 
