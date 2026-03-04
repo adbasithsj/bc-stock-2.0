@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -46,7 +45,7 @@
         .btn-pdf { border-color: var(--pdf); color: var(--pdf); }
         .btn-reset { background: rgba(100, 116, 139, 0.1); color: var(--text-dim); }
         .view-stats { margin-bottom: 25px; font-size: 0.9rem; color: var(--text-dim); padding-left: 5px; display: flex; justify-content: space-between; }
-        #item-count { color: var(--primary); font-weight: 700; }
+        #item-count, #total-value { color: var(--primary); font-weight: 700; }
         .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
         .card { background: var(--card-bg); padding: 20px; border-radius: 12px; border: 1px solid #334155; display: flex; flex-direction: column; justify-content: space-between; min-height: 110px; }
         .price-tag { font-size: 1.3rem; font-weight: 700; margin-bottom: 12px; }
@@ -110,21 +109,22 @@
         <button class="btn btn-reset" onclick="resetAllFilters()">🔄 Reset</button>
 
         <div style="display: flex; align-items: center; gap: 8px; margin-left: 5px; position: relative;">
-    <div style="position: relative; display: flex; align-items: center;">
-        <input type="text" id="calcInput" class="btn" 
-               style="width: 100px; cursor: text; text-align: left; padding-right: 25px;" 
-               placeholder="Calc..." 
-               oninput="quickCalc()" 
-               onkeydown="handleCalcKey(event)">
-        <span id="clearCalc" onclick="clearCalculator()" 
-              style="position: absolute; right: 8px; cursor: pointer; color: var(--text-dim); font-weight: bold; display: none;">×</span>
-    </div>
-    <span id="calcResult" style="font-weight: 700; color: var(--success); font-size: 0.9rem;"></span>
-</div>
+            <div style="position: relative; display: flex; align-items: center;">
+                <input type="text" id="calcInput" class="btn" 
+                       style="width: 100px; cursor: text; text-align: left; padding-right: 25px;" 
+                       placeholder="Calc..." 
+                       oninput="quickCalc()" 
+                       onkeydown="handleCalcKey(event)">
+                <span id="clearCalc" onclick="clearCalculator()" 
+                      style="position: absolute; right: 8px; cursor: pointer; color: var(--text-dim); font-weight: bold; display: none;">×</span>
+            </div>
+            <span id="calcResult" style="font-weight: 700; color: var(--success); font-size: 0.9rem;"></span>
+        </div>
     </div>
 
     <div class="view-stats">
         <span>Showing <span id="item-count">0</span> items</span>
+        <span>Total Value: ₹<span id="total-value">0</span></span>
     </div>
 
     <div id="product-list" class="product-grid"></div>
@@ -358,7 +358,13 @@
         else if (sortDirection === 'desc') filtered.sort((a, b) => b.price - a.price);
 
         currentlyFiltered = filtered;
+        
+        // Calculate Total Value dynamically for the current filtered view
+        const total = filtered.reduce((sum, p) => sum + (p.price * (p.stock > 0 ? p.stock : 0)), 0);
+        
         document.getElementById('item-count').innerText = filtered.length;
+        document.getElementById('total-value').innerText = total.toLocaleString();
+        
         render(filtered);
     }
 
@@ -395,12 +401,9 @@
       const input = document.getElementById('calcInput');
       const display = document.getElementById('calcResult');
       const clearBtn = document.getElementById('clearCalc');
-    
-      // Show/Hide clear icon
       clearBtn.style.display = input.value.length > 0 ? "block" : "none";
 
       try {
-        // Basic sanitization: only allow numbers and math operators
         const cleanInput = input.value.replace(/[^-()\d/*+.]/g, '');
         if (cleanInput === "") {
             display.innerText = "";
@@ -409,32 +412,27 @@
         const result = Function(`'use strict'; return (${cleanInput})`)();
         display.innerText = (result !== undefined && !isNaN(result)) ? "= " + result : "";
       } catch (e) { 
-        display.innerText = ""; 
-      }
+         display.innerText = ""; 
+       }
     }
 
-  // Feature 1: Handle Enter Key (Desktop & Mobile)
-  function handleCalcKey(event) {
-    if (event.key === "Enter") {
-        const resultText = document.getElementById('calcResult').innerText;
-        if (resultText.includes("=")) {
-            // Take the result (number after =) and put it in the box
-            document.getElementById('calcInput').value = resultText.replace("= ", "");
-            document.getElementById('calcResult').innerText = "";
+    function handleCalcKey(event) {
+        if (event.key === "Enter") {
+            const resultText = document.getElementById('calcResult').innerText;
+            if (resultText.includes("=")) {
+                document.getElementById('calcInput').value = resultText.replace("= ", "");
+                document.getElementById('calcResult').innerText = "";
+            }
         }
-        // event.target.blur(); // Closes mobile keyboard
+    }
+
+    function clearCalculator() {
+        const input = document.getElementById('calcInput');
+        input.value = "";
+        document.getElementById('calcResult').innerText = "";
+        document.getElementById('clearCalc').style.display = "none";
         input.focus();
     }
-  }
-
-  // Feature 2: Clear functionality
-  function clearCalculator() {
-    const input = document.getElementById('calcInput');
-    input.value = "";
-    document.getElementById('calcResult').innerText = "";
-    document.getElementById('clearCalc').style.display = "none";
-    input.focus();
-  }
 
     window.onclick = function(event) {
         if (event.target == document.getElementById("todoModal")) closeTodo();
