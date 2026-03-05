@@ -29,7 +29,24 @@
         header h1 span { color: var(--primary); }
         .sync-time { font-size: 0.75rem; color: var(--text-dim); margin-bottom: 30px; }
         .controls { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center; }
-        .search-bar { flex: 1 1 100%; padding: 12px 18px; background: var(--card-bg); border: 1px solid #334155; border-radius: 10px; color: white; font-size: 0.95rem; }
+        
+        /* Fixed height search bar with scrolling */
+        .search-bar { 
+            flex: 1 1 100%; 
+            padding: 12px 18px; 
+            background: var(--card-bg); 
+            border: 1px solid #334155; 
+            border-radius: 10px; 
+            color: white; 
+            font-size: 0.95rem; 
+            font-family: inherit;
+            resize: none;
+            height: 50px; /* Fixed height */
+            overflow-y: auto; /* Scroll instead of grow */
+            box-sizing: border-box;
+        }
+        .search-bar:focus { outline: none; border-color: var(--primary); }
+        
         .btn { padding: 10px 14px; border-radius: 10px; border: 1px solid #334155; background: var(--card-bg); color: var(--text-main); cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 6px; transition: 0.2s; font-size: 0.85rem; white-space: nowrap; }
         .btn:hover { background: #334155; }
         .btn-todo { border-color: var(--todo); color: var(--todo); font-weight: bold; }
@@ -82,8 +99,8 @@
     </header>
 
     <div class="controls">
-        <input type="search" id="searchInput" class="search-bar" placeholder="Search... (use '-' to exclude)" oninput="filterAndRender()" autofocus>
-        
+        <textarea id="searchInput" class="search-bar" placeholder="Search or paste multiple lines..." oninput="filterAndRender()" autofocus></textarea>
+                
         <div class="price-filter-group">
             <span>₹</span>
             <input type="number" id="minPrice" class="price-input" placeholder="Min" oninput="filterAndRender()">
@@ -102,21 +119,21 @@
         <button id="hideOutBtn" class="btn" onclick="toggleExclusion('out')">👁️ Hide Out</button>
         <button id="hideZeroBtn" class="btn" onclick="toggleExclusion('zero')">👁️ Hide ₹0</button>
         <button id="sortBtn" class="btn" onclick="toggleSort()">↕️ Price</button>
-        
+                
         <button class="btn btn-excel" onclick="exportToExcel()">📊 Excel</button>
         <button class="btn btn-pdf" onclick="exportToPDF()">📄 PDF</button>
-        
+                
         <button class="btn btn-reset" onclick="resetAllFilters()">🔄 Reset</button>
 
         <div style="display: flex; align-items: center; gap: 8px; margin-left: 5px; position: relative;">
             <div style="position: relative; display: flex; align-items: center;">
                 <input type="text" id="calcInput" class="btn" 
-                       style="width: 100px; cursor: text; text-align: left; padding-right: 25px;" 
-                       placeholder="Calc..." 
-                       oninput="quickCalc()" 
-                       onkeydown="handleCalcKey(event)">
+                        style="width: 100px; cursor: text; text-align: left; padding-right: 25px;" 
+                        placeholder="Calc..." 
+                        oninput="quickCalc()" 
+                        onkeydown="handleCalcKey(event)">
                 <span id="clearCalc" onclick="clearCalculator()" 
-                      style="position: absolute; right: 8px; cursor: pointer; color: var(--text-dim); font-weight: bold; display: none;">×</span>
+                       style="position: absolute; right: 8px; cursor: pointer; color: var(--text-dim); font-weight: bold; display: none;">×</span>
             </div>
             <span id="calcResult" style="font-weight: 700; color: var(--success); font-size: 0.9rem;"></span>
         </div>
@@ -145,7 +162,7 @@
         <span class="close-modal" onclick="closeTodo()">&times;</span>
         <h2 style="margin-top:0">Work Dashboard</h2>
         <p id="todo-sync-status" class="loading-text" style="margin-bottom:20px;"></p>
-        
+                
         <div class="todo-section">
             <h3>☀️ DAILY WORK</h3>
             <div id="daily-list"><p class="loading-text">Fetching tasks...</p></div>
@@ -196,12 +213,8 @@
                 }
             });
             const badge = document.getElementById("rem-count-badge");
-            if (count > 0) {
-                badge.innerText = count;
-                badge.style.display = "inline-block";
-            } else {
-                badge.style.display = "none";
-            }
+            if (count > 0) { badge.innerText = count; badge.style.display = "inline-block"; } 
+            else { badge.style.display = "none"; }
         } catch (e) { console.error("Badge update failed"); }
     }
 
@@ -210,14 +223,12 @@
         const body = document.getElementById("reminder-body");
         modal.style.display = "block";
         body.innerHTML = '<p style="text-align:center; color:var(--text-dim);">Fetching reminders...</p>';
-
         try {
             const response = await fetch(reminderSheetURL);
             const csv = await response.text();
             const rows = csv.split("\n").slice(1);
             let html = '';
             let count = 0;
-
             rows.forEach(row => {
                 const firstCommaIndex = row.indexOf(',');
                 if (firstCommaIndex !== -1) {
@@ -234,10 +245,7 @@
         } catch (e) { body.innerHTML = '<p style="color:var(--danger); text-align:center;">Load error.</p>'; }
     }
 
-    function closeReminder() {
-        document.getElementById("reminderModal").style.display = "none";
-        updateReminderCount();
-    }
+    function closeReminder() { document.getElementById("reminderModal").style.display = "none"; updateReminderCount(); }
 
     // --- MAIN STOCK LOGIC ---
     async function loadData() {
@@ -333,18 +341,30 @@
 
     function filterAndRender() {
         let filtered = [...products];
-        const searchInput = document.getElementById("searchInput").value.toLowerCase().trim();
+        const searchInput = document.getElementById("searchInput");
+        const rawValue = searchInput.value.trim();
         const minP = parseFloat(document.getElementById("minPrice").value) || 0;
         const maxP = parseFloat(document.getElementById("maxPrice").value) || Infinity;
 
-        if (searchInput) {
-            const searchTerms = searchInput.split(/\s+/);
-            const includeTerms = searchTerms.filter(t => !t.startsWith('-'));
-            const excludeTerms = searchTerms.filter(t => t.startsWith('-')).map(t => t.substring(1));
-            filtered = filtered.filter(p => {
-                const name = p.name.toLowerCase();
-                return includeTerms.every(term => name.includes(term)) && !excludeTerms.some(term => term !== "" && name.includes(term));
-            });
+        if (rawValue) {
+            const lines = rawValue.toLowerCase().split('\n').map(l => l.trim()).filter(l => l !== "");
+            if (lines.length > 1) {
+                // BULK MODE: Show items matching ANY line
+                filtered = filtered.filter(p => {
+                    const name = p.name.toLowerCase();
+                    return lines.some(line => line !== "" && name.includes(line));
+                });
+            } else {
+                // NORMAL MODE: Split single line by space
+                const searchTerms = lines[0].split(/\s+/);
+                const includeTerms = searchTerms.filter(t => !t.startsWith('-'));
+                const excludeTerms = searchTerms.filter(t => t.startsWith('-')).map(t => t.substring(1));
+                filtered = filtered.filter(p => {
+                    const name = p.name.toLowerCase();
+                    return includeTerms.every(term => name.includes(term)) && 
+                           !excludeTerms.some(term => term !== "" && name.includes(term));
+                });
+            }
         }
 
         filtered = filtered.filter(p => p.price >= minP && p.price <= maxP);
@@ -358,13 +378,9 @@
         else if (sortDirection === 'desc') filtered.sort((a, b) => b.price - a.price);
 
         currentlyFiltered = filtered;
-        
-        // Calculate Total Value dynamically for the current filtered view
         const total = filtered.reduce((sum, p) => sum + (p.price * (p.stock > 0 ? p.stock : 0)), 0);
-        
         document.getElementById('item-count').innerText = filtered.length;
         document.getElementById('total-value').innerText = total.toLocaleString();
-        
         render(filtered);
     }
 
@@ -402,18 +418,12 @@
       const display = document.getElementById('calcResult');
       const clearBtn = document.getElementById('clearCalc');
       clearBtn.style.display = input.value.length > 0 ? "block" : "none";
-
       try {
         const cleanInput = input.value.replace(/[^-()\d/*+.]/g, '');
-        if (cleanInput === "") {
-            display.innerText = "";
-            return;
-        }
+        if (cleanInput === "") { display.innerText = ""; return; }
         const result = Function(`'use strict'; return (${cleanInput})`)();
         display.innerText = (result !== undefined && !isNaN(result)) ? "= " + result : "";
-      } catch (e) { 
-         display.innerText = ""; 
-       }
+      } catch (e) { display.innerText = ""; }
     }
 
     function handleCalcKey(event) {
