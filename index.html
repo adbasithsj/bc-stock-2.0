@@ -30,10 +30,12 @@
         .sync-time { font-size: 0.75rem; color: var(--text-dim); margin-bottom: 30px; }
         .controls { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center; }
         
-        /* Fixed height search bar with scrolling */
+        /* Search Wrapper for Clear Button */
+        .search-wrapper { position: relative; flex: 1 1 100%; display: flex; align-items: center; }
+        
         .search-bar { 
-            flex: 1 1 100%; 
-            padding: 12px 18px; 
+            width: 100%;
+            padding: 12px 45px 12px 18px; /* Extra right padding for the X button */
             background: var(--card-bg); 
             border: 1px solid #334155; 
             border-radius: 10px; 
@@ -41,12 +43,29 @@
             font-size: 0.95rem; 
             font-family: inherit;
             resize: none;
-            height: 50px; /* Fixed height */
-            overflow-y: auto; /* Scroll instead of grow */
+            height: 50px; 
+            overflow-y: auto; 
             box-sizing: border-box;
         }
         .search-bar:focus { outline: none; border-color: var(--primary); }
         
+        .clear-search-btn {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-size: 1.4rem;
+            cursor: pointer;
+            display: none; /* Hidden by default */
+            font-weight: bold;
+            line-height: 1;
+            padding: 5px;
+        }
+        .clear-search-btn:hover { color: var(--danger); }
+
         .btn { padding: 10px 14px; border-radius: 10px; border: 1px solid #334155; background: var(--card-bg); color: var(--text-main); cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 6px; transition: 0.2s; font-size: 0.85rem; white-space: nowrap; }
         .btn:hover { background: #334155; }
         .btn-todo { border-color: var(--todo); color: var(--todo); font-weight: bold; }
@@ -87,7 +106,7 @@
         .todo-no { color: var(--primary); font-weight: bold; width: 30px; }
         .loading-text { font-size: 0.8rem; color: var(--text-dim); font-style: italic; }
         footer { text-align: center; margin-top: 50px; color: var(--text-dim); padding-bottom: 30px; }
-        @media (min-width: 600px) { .search-bar { flex: 2; min-width: 300px; } }
+        @media (min-width: 600px) { .search-wrapper { flex: 2; min-width: 300px; } }
     </style>
 </head>
 <body>
@@ -99,7 +118,10 @@
     </header>
 
     <div class="controls">
-        <textarea id="searchInput" class="search-bar" placeholder="Search or paste multiple lines..." oninput="filterAndRender()" autofocus></textarea>
+        <div class="search-wrapper">
+            <textarea id="searchInput" class="search-bar" placeholder="Search or paste multiple lines..." oninput="filterAndRender()" autofocus></textarea>
+            <button id="clearSearch" class="clear-search-btn" onclick="clearSearch()">&times;</button>
+        </div>
                 
         <div class="price-filter-group">
             <span>₹</span>
@@ -325,6 +347,13 @@
         filterAndRender();
     }
 
+    function clearSearch() {
+        const searchInput = document.getElementById("searchInput");
+        searchInput.value = "";
+        filterAndRender();
+        searchInput.focus();
+    }
+
     function resetAllFilters() {
         document.getElementById("searchInput").value = "";
         document.getElementById("minPrice").value = "";
@@ -342,20 +371,22 @@
     function filterAndRender() {
         let filtered = [...products];
         const searchInput = document.getElementById("searchInput");
+        const clearBtn = document.getElementById("clearSearch");
         const rawValue = searchInput.value.trim();
         const minP = parseFloat(document.getElementById("minPrice").value) || 0;
         const maxP = parseFloat(document.getElementById("maxPrice").value) || Infinity;
 
+        // Show/Hide Clear Button
+        clearBtn.style.display = rawValue.length > 0 ? "block" : "none";
+
         if (rawValue) {
             const lines = rawValue.toLowerCase().split('\n').map(l => l.trim()).filter(l => l !== "");
             if (lines.length > 1) {
-                // BULK MODE: Show items matching ANY line
                 filtered = filtered.filter(p => {
                     const name = p.name.toLowerCase();
                     return lines.some(line => line !== "" && name.includes(line));
                 });
             } else {
-                // NORMAL MODE: Split single line by space
                 const searchTerms = lines[0].split(/\s+/);
                 const includeTerms = searchTerms.filter(t => !t.startsWith('-'));
                 const excludeTerms = searchTerms.filter(t => t.startsWith('-')).map(t => t.substring(1));
